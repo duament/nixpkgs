@@ -3274,6 +3274,8 @@ with pkgs;
 
   autosuspend = callPackage ../os-specific/linux/autosuspend { };
 
+  avbroot = callPackage ../development/mobile/avbroot { };
+
   avfs = callPackage ../tools/filesystems/avfs { };
 
   aliyun-cli = callPackage ../tools/admin/aliyun-cli { };
