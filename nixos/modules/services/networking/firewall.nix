@@ -3,6 +3,8 @@ let
 
   cfg = config.networking.firewall;
 
+  backend = if config.networking.nftables.enable then "nftables" else "iptables";
+
   canonicalizePortList =
     ports: lib.unique (builtins.sort builtins.lessThan ports);
 
@@ -274,7 +276,10 @@ in
 
     networking.firewall.trustedInterfaces = [ "lo" ];
 
-    environment.systemPackages = [ cfg.package ] ++ cfg.extraPackages;
+    environment.systemPackages = [
+      cfg.package
+      (pkgs.nixos-firewall-tool.override { inherit backend; })
+    ] ++ cfg.extraPackages;
 
     boot.kernelModules = (lib.optional cfg.autoLoadConntrackHelpers "nf_conntrack")
       ++ map (x: "nf_conntrack_${x}") cfg.connectionTrackingModules;
