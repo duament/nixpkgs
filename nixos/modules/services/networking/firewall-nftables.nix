@@ -1,16 +1,16 @@
-{ config, lib, pkgs, ... }:
-
-with lib;
+{ config, lib, ... }:
 
 let
 
+  inherit (lib) mkIf mkOption types mdDoc optionalString;
+
   cfg = config.networking.firewall;
 
-  ifaceSet = concatStringsSep ", " (
+  ifaceSet = lib.concatStringsSep ", " (
     map (x: ''"${x}"'') cfg.trustedInterfaces
   );
 
-  portsToNftSet = ports: portRanges: concatStringsSep ", " (
+  portsToNftSet = ports: portRanges: lib.concatStringsSep ", " (
     map (x: toString x) ports
     ++ map (x: "${toString x.from}-${toString x.to}") portRanges
   );
@@ -26,7 +26,7 @@ in
         type = types.lines;
         default = "";
         example = "ip6 saddr { fc00::/7, fe80::/10 } tcp dport 24800 accept";
-        description = lib.mdDoc ''
+        description = mdDoc ''
           Additional nftables rules to be appended to the input-allow
           chain.
 
@@ -38,7 +38,7 @@ in
         type = types.lines;
         default = "";
         example = "iifname wg0 accept";
-        description = lib.mdDoc ''
+        description = mdDoc ''
           Additional nftables rules to be appended to the forward-allow
           chain.
 
@@ -61,7 +61,7 @@ in
         message = "extraStopCommands is incompatible with the nftables based firewall: ${cfg.extraStopCommands}";
       }
       {
-        assertion = cfg.pingLimit == null || !(hasPrefix "--" cfg.pingLimit);
+        assertion = cfg.pingLimit == null || !(lib.hasPrefix "--" cfg.pingLimit);
         message = "nftables syntax like \"2/second\" should be used in networking.firewall.pingLimit";
       }
       {
@@ -120,7 +120,7 @@ in
 
         chain input-allow {
 
-          ${concatStrings (mapAttrsToList (iface: cfg:
+          ${lib.concatStrings (lib.mapAttrsToList (iface: cfg:
             let
               ifaceExpr = optionalString (iface != "default") "iifname ${iface}";
               tcpSet = portsToNftSet cfg.allowedTCPPorts cfg.allowedTCPPortRanges;
