@@ -163,8 +163,12 @@ done
 
 sudoCommand=(sudo --preserve-env="$preservedSudoVars" --)
 
-if [[ -n "$SUDO_USER" || -n "$remoteSudoAlways" ]]; then
+if [[ -n "$SUDO_USER" ]]; then
     maybeSudo=("${sudoCommand[@]}")
+fi
+
+if [[ -n "$remoteSudoAlways" ]]; then
+    maybeSudo=(-t "${sudoComand[@]}")
 fi
 
 # log the given argument to stderr if verbose mode is on
@@ -202,7 +206,7 @@ targetHostSudoCmd() {
     restoreMaybeSudo=
     previousMaybeSudo=("${maybeSudo[@]}")
     if [[ -n "$remoteSudo" ]]; then
-        maybeSudo=("${sudoCommand[@]}")
+        maybeSudo=(-t "${sudoCommand[@]}")
         restoreMaybeSudo=1
     fi
 
