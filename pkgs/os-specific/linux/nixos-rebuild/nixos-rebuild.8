@@ -30,6 +30,7 @@
 .Op Fl -build-host Va host
 .Op Fl -target-host Va host
 .Op Fl -use-remote-sudo
+.Op Fl -use-remote-sudo-always
 .br
 .Op Fl -show-trace
 .Op Fl I Va NIX_PATH
@@ -363,13 +364,24 @@ is also set. This is useful when the target-host connection to cache.nixos.org
 is faster than the connection between hosts.
 .
 .It Fl -use-remote-sudo
-When set, nixos-rebuild prefixes remote commands that run on the
+When set, nixos-rebuild prefixes activation commands that run on the
+.Fl -target-host
+system with
+.Ic sudo Ns
+\&. Setting this option allows deploying as a non-root user.
+.
+.It Fl -use-remote-sudo-always
+When set, nixos-rebuild prefixes every command run remotely with
+.Ic sudo Ns
+ on
 .Fl -build-host
 and
 .Fl -target-host
-systems with
-.Ic sudo Ns
-\&. Setting this option allows deploying as a non-root user.
+systems.
+.Pp
+This command retains the old behaviour of
+.Fl -use-remote-sudo
+for backwards compatibility and is not recommended.
 .
 .It Fl -flake Va flake-uri Ns Op Va #name
 Build the NixOS system from the specified flake. It defaults to the directory

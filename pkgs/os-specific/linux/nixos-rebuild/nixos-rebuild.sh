@@ -32,6 +32,7 @@ specialisation=
 buildHost=
 targetHost=
 remoteSudo=
+remoteSudoAlways=
 verboseScript=
 noFlake=
 # comma separated list of vars to preserve when using sudo
@@ -128,6 +129,9 @@ while [ "$#" -gt 0 ]; do
       --use-remote-sudo)
         remoteSudo=1
         ;;
+      --use-remote-sudo-always)
+        remoteSudoAlways=1
+        ;;
       --flake)
         flake="$1"
         shift 1
@@ -157,8 +161,10 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
-if [[ -n "$SUDO_USER" || -n $remoteSudo ]]; then
-    maybeSudo=(sudo --preserve-env="$preservedSudoVars" --)
+sudoCommand=(sudo --preserve-env="$preservedSudoVars" --)
+
+if [[ -n "$SUDO_USER" || -n "$remoteSudoAlways" ]]; then
+    maybeSudo=("${sudoCommand[@]}")
 fi
 
 # log the given argument to stderr if verbose mode is on
@@ -189,6 +195,21 @@ targetHostCmd() {
         runCmd "${maybeSudo[@]}" "$@"
     else
         runCmd ssh $SSHOPTS "$targetHost" "${maybeSudo[@]}" "$@"
+    fi
+}
+
+targetHostSudoCmd() {
+    restoreMaybeSudo=
+    previousMaybeSudo=("${maybeSudo[@]}")
+    if [[ -n "$remoteSudo" ]]; then
+        maybeSudo=("${sudoCommand[@]}")
+        restoreMaybeSudo=1
+    fi
+
+    targetHostCmd "$@"
+
+    if [[ -n "$restoreMaybeSudo" ]]; then
+        maybeSudo=("${previousMaybeSudo[@]}")
     fi
 }
 
@@ -667,7 +688,7 @@ if [ -z "$rollback" ]; then
             pathToConfig="$(nixFlakeBuild "$flake#$flakeAttr.config.system.build.toplevel" "${extraBuildFlags[@]}" "${lockFlags[@]}")"
         fi
         copyToTarget "$pathToConfig"
-        targetHostCmd nix-env -p "$profile" --set "$pathToConfig"
+        targetHostSudoCmd nix-env -p "$profile" --set "$pathToConfig"
     elif [[ "$action" = test || "$action" = build || "$action" = dry-build || "$action" = dry-activate ]]; then
         if [[ -z $flake ]]; then
             pathToConfig="$(nixBuild '<nixpkgs/nixos>' -A system -k "${extraBuildFlags[@]}")"
@@ -695,7 +716,7 @@ if [ -z "$rollback" ]; then
     fi
 else # [ -n "$rollback" ]
     if [[ "$action" = switch || "$action" = boot ]]; then
-        targetHostCmd nix-env --rollback -p "$profile"
+        targetHostSudoCmd nix-env --rollback -p "$profile"
         pathToConfig="$profile"
     elif [[ "$action" = test || "$action" = build ]]; then
         systemNumber=$(
@@ -740,7 +761,7 @@ if [[ "$action" = switch || "$action" = boot || "$action" = test || "$action" = 
     if [[ -n "$NIXOS_SWITCH_USE_DIRTY_ENV" ]]; then
         log "warning: skipping systemd-run since NIXOS_SWITCH_USE_DIRTY_ENV is set. This environment variable will be ignored in the future"
         cmd=()
-    elif ! targetHostCmd "${cmd[@]}" true &>/dev/null; then
+    elif ! targetHostSudoCmd "${cmd[@]}" true &>/dev/null; then
         logVerbose "Skipping systemd-run to switch configuration since it is not working in target host."
         cmd=(
             "env"
@@ -762,7 +783,7 @@ if [[ "$action" = switch || "$action" = boot || "$action" = test || "$action" = 
         fi
     fi
 
-    if ! targetHostCmd "${cmd[@]}" "$action"; then
+    if ! targetHostSudoCmd "${cmd[@]}" "$action"; then
         log "warning: error(s) occurred while switching to the new configuration"
         exit 1
     fi
